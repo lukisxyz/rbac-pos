@@ -21,11 +21,6 @@ func (s *services) GetOneById(ctx context.Context, id ulid.ULID) (*Role, error) 
 	return s.readModel.FindById(ctx, id)
 }
 
-// GetOneByUrl implements ReadData.
-func (*services) GetOneByUrl(ctx context.Context, url string) (*Role, error) {
-	panic("unimplemented")
-}
-
 // CreateRole implements MutationData.
 func (s *services) CreateRole(ctx context.Context, name, desc string) (*Role, error) {
 	newData := newRole(name, desc)
@@ -74,7 +69,6 @@ func NewMutationData(
 type ReadData interface {
 	GetAll(ctx context.Context) (RoleList, error)
 	GetOneById(ctx context.Context, id ulid.ULID) (*Role, error)
-	GetOneByUrl(ctx context.Context, url string) (*Role, error)
 }
 
 func NewReadData(

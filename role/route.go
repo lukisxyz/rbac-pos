@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -24,14 +25,14 @@ func NewRoute(
 	}
 }
 
-func (p *roleRoute) Routes(r *chi.Mux) {
-	r.Mount("/api/role", r.Group(func(route chi.Router) {
-		route.Post("/", p.createRole)
-		route.Get("/", p.getAllRole)
-		route.Get("/{id}", p.getOneRole)
-		route.Patch("/{id}", p.updateRole)
-		route.Delete("/{id}", p.deleteRole)
-	}))
+func (p *roleRoute) Routes() *chi.Mux {
+	r := chi.NewMux()
+	r.Post("/", p.createRole)
+	r.Get("/", p.getAllRole)
+	r.Get("/{id}", p.getOneRole)
+	r.Patch("/{id}", p.updateRole)
+	r.Delete("/{id}", p.deleteRole)
+	return r
 }
 
 func writeMessage(w http.ResponseWriter, status int, msg string) {
@@ -104,6 +105,11 @@ func (p *roleRoute) updateRole(
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
+
+	if err := body.Validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	ctx := r.Context()
 
 	data, err := p.mutate.EditRole(ctx, id, body.Name, body.Description)
@@ -115,8 +121,15 @@ func (p *roleRoute) updateRole(
 }
 
 type createRoleRequest struct {
-	Name        string `json:"name"`
+	Name        string `json:"name" validate:"required"`
 	Description string `json:"description"`
+}
+
+func (c createRoleRequest) Validate() error {
+	return validation.ValidateStruct(
+		&c,
+		validation.Field(&c.Name, validation.Required),
+	)
 }
 
 func (p *roleRoute) createRole(
@@ -125,6 +138,10 @@ func (p *roleRoute) createRole(
 ) {
 	var body createRoleRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if err := body.Validate(); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}

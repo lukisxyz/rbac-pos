@@ -95,9 +95,25 @@ func (r *repo) Fetch(ctx context.Context) (RoleList, error) {
 	}
 	list := RoleList{
 		Roles: items,
-		Count: count,
+		Count: itemCount,
 	}
 	return list, nil
+}
+
+func (r *repo) Revoke(ctx context.Context, id ulid.ULID) error {
+	query := `
+		UPDATE refresh_tokens
+		SET revoked = TRUE
+		WHERE id = $1;
+	`
+	if _, err := r.db.Exec(
+		ctx,
+		query,
+		id,
+	); err != nil {
+		return err
+	}
+	return nil
 }
 
 // FindById implements ReadModel.
@@ -130,11 +146,6 @@ func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*Role, error) {
 		}
 	}
 	return &data, nil
-}
-
-// FindByUrl implements ReadModel.
-func (*repo) FindByUrl(ctx context.Context, url string) (*Role, error) {
-	panic("unimplemented")
 }
 
 // Delete implements Repo.
@@ -195,7 +206,6 @@ type Repo interface {
 type ReadModel interface {
 	Fetch(ctx context.Context) (RoleList, error)
 	FindById(ctx context.Context, id ulid.ULID) (*Role, error)
-	FindByUrl(ctx context.Context, url string) (*Role, error)
 }
 
 func NewRepo(db *pgxpool.Pool) Repo {

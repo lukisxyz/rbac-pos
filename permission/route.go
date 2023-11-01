@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -24,14 +25,14 @@ func NewRoute(
 	}
 }
 
-func (p *permissionRoute) Routes(r *chi.Mux) {
-	r.Mount("/api/permission", r.Group(func(route chi.Router) {
-		route.Post("/", p.createPermission)
-		route.Get("/", p.getAllPermission)
-		route.Get("/{id}", p.getOnePermission)
-		route.Patch("/{id}", p.updatePermission)
-		route.Delete("/{id}", p.deletePermission)
-	}))
+func (p *permissionRoute) Routes() *chi.Mux {
+	r := chi.NewMux()
+	r.Post("/", p.createPermission)
+	r.Get("/", p.getAllPermission)
+	r.Get("/{id}", p.getOnePermission)
+	r.Patch("/{id}", p.updatePermission)
+	r.Delete("/{id}", p.deletePermission)
+	return r
 }
 
 func writeMessage(w http.ResponseWriter, status int, msg string) {
@@ -104,6 +105,11 @@ func (p *permissionRoute) updatePermission(
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
+
+	if err := body.Validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	ctx := r.Context()
 
 	data, err := p.mutate.EditPermission(ctx, id, body.Name, body.Description, body.Url)
@@ -115,9 +121,17 @@ func (p *permissionRoute) updatePermission(
 }
 
 type createPermissionRequest struct {
-	Name        string `json:"name"`
+	Name        string `json:"name" validate:"required"`
 	Description string `json:"description"`
-	Url         string `json:"url"`
+	Url         string `json:"url" validate:"required"`
+}
+
+func (c createPermissionRequest) Validate() error {
+	return validation.ValidateStruct(
+		&c,
+		validation.Field(&c.Name, validation.Required),
+		validation.Field(&c.Url, validation.Required),
+	)
 }
 
 func (p *permissionRoute) createPermission(
@@ -126,6 +140,11 @@ func (p *permissionRoute) createPermission(
 ) {
 	var body createPermissionRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := body.Validate(); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}

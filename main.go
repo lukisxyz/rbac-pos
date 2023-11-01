@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"pos/account"
+	"pos/oauth"
 	"pos/permission"
 	"pos/role"
 	"time"
@@ -40,6 +42,10 @@ func main() {
 	permissionReadModel := permission.NewReadModel(pool)
 	roleRepo := role.NewRepo(pool)
 	roleReadModel := role.NewReadModel(pool)
+	accountRepo := account.NewRepo(pool)
+	accountReadModel := account.NewReadModel(pool)
+	oauthRepo := oauth.NewRepo(pool)
+	oauthReadModel := oauth.NewReadModel(pool)
 
 	readDataPermission := permission.NewReadData(
 		permissionRepo,
@@ -49,7 +55,6 @@ func main() {
 		permissionRepo,
 		permissionReadModel,
 	)
-
 	readDataRole := role.NewReadData(
 		roleRepo,
 		roleReadModel,
@@ -58,19 +63,43 @@ func main() {
 		roleRepo,
 		roleReadModel,
 	)
+	readDataAccount := account.NewReadData(
+		accountRepo,
+		accountReadModel,
+	)
+	mutateDataAccount := account.NewMutationData(
+		accountRepo,
+		accountReadModel,
+	)
+	oauthSvc := oauth.NewServiceOAuth(
+		accountReadModel,
+		oauthRepo,
+		oauthReadModel,
+		cfg.JwtCfg.Secret,
+		cfg.JwtCfg.RefreshExpTime,
+		cfg.JwtCfg.AccessExpTime,
+	)
 
 	permissionRoute := permission.NewRoute(
 		mutateDataPermission,
 		readDataPermission,
 	)
-
 	roleRoute := role.NewRoute(
 		mutateDataRole,
 		readDataRole,
 	)
+	accountRoute := account.NewRoute(
+		mutateDataAccount,
+		readDataAccount,
+	)
+	oauthRoute := oauth.NewRoute(
+		oauthSvc,
+	)
 
-	permissionRoute.Routes(r)
-	roleRoute.Routes(r)
+	r.Mount("/api/permission", permissionRoute.Routes())
+	r.Mount("/api/role", roleRoute.Routes())
+	r.Mount("/api/account", accountRoute.Routes())
+	r.Mount("/api", oauthRoute.Routes())
 
 	log.Info().Msg(fmt.Sprintf("starting up server on: %s", cfg.Listen.Addr()))
 	server := &http.Server{

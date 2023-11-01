@@ -99,7 +99,7 @@ func (r *repo) Fetch(ctx context.Context) (PermissionList, error) {
 	}
 	list := PermissionList{
 		Permissions: items,
-		Count:       count,
+		Count:       itemCount,
 	}
 	return list, nil
 }
