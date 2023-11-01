@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"pos/permission"
+	"pos/role"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -37,6 +38,8 @@ func main() {
 
 	permissionRepo := permission.NewRepo(pool)
 	permissionReadModel := permission.NewReadModel(pool)
+	roleRepo := role.NewRepo(pool)
+	roleReadModel := role.NewReadModel(pool)
 
 	readDataPermission := permission.NewReadData(
 		permissionRepo,
@@ -47,12 +50,27 @@ func main() {
 		permissionReadModel,
 	)
 
-	permissionRoute := permission.NewPermissionRoute(
+	readDataRole := role.NewReadData(
+		roleRepo,
+		roleReadModel,
+	)
+	mutateDataRole := role.NewMutationData(
+		roleRepo,
+		roleReadModel,
+	)
+
+	permissionRoute := permission.NewRoute(
 		mutateDataPermission,
 		readDataPermission,
 	)
 
+	roleRoute := role.NewRoute(
+		mutateDataRole,
+		readDataRole,
+	)
+
 	permissionRoute.Routes(r)
+	roleRoute.Routes(r)
 
 	log.Info().Msg(fmt.Sprintf("starting up server on: %s", cfg.Listen.Addr()))
 	server := &http.Server{

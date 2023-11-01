@@ -14,7 +14,7 @@ type permissionRoute struct {
 	read   ReadData
 }
 
-func NewPermissionRoute(
+func NewRoute(
 	mutate MutationData,
 	read ReadData,
 ) *permissionRoute {
