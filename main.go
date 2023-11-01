@@ -46,6 +46,8 @@ func main() {
 	accountReadModel := account.NewReadModel(pool)
 	oauthRepo := oauth.NewRepo(pool)
 	oauthReadModel := oauth.NewReadModel(pool)
+	rolePermissionRepo := role.NewRepoRolePermission(pool)
+	rolePermissionReadModel := role.NewReadModelRolePermission(pool)
 
 	readDataPermission := permission.NewReadData(
 		permissionRepo,
@@ -58,6 +60,8 @@ func main() {
 	readDataRole := role.NewReadData(
 		roleRepo,
 		roleReadModel,
+		rolePermissionRepo,
+		rolePermissionReadModel,
 	)
 	mutateDataRole := role.NewMutationData(
 		roleRepo,
@@ -78,6 +82,15 @@ func main() {
 		cfg.JwtCfg.Secret,
 		cfg.JwtCfg.RefreshExpTime,
 		cfg.JwtCfg.AccessExpTime,
+		roleReadModel,
+		permissionReadModel,
+	)
+
+	rolePermissionSvc := role.NewRelePermissionService(
+		roleRepo,
+		roleReadModel,
+		rolePermissionRepo,
+		rolePermissionReadModel,
 	)
 
 	permissionRoute := permission.NewRoute(
@@ -87,6 +100,7 @@ func main() {
 	roleRoute := role.NewRoute(
 		mutateDataRole,
 		readDataRole,
+		rolePermissionSvc,
 	)
 	accountRoute := account.NewRoute(
 		mutateDataAccount,

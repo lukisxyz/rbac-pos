@@ -14,6 +14,11 @@ type Role struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type RolePermission struct {
+	PermissionId ulid.ULID `json:"permission_id"`
+	RoleId       ulid.ULID `json:"role_id"`
+}
+
 func newRole(name, desc string) Role {
 	id := ulid.Make()
 	return Role{

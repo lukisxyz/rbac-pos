@@ -2,13 +2,16 @@ package role
 
 import (
 	"context"
+	"errors"
 
 	"github.com/oklog/ulid/v2"
 )
 
 type services struct {
-	repo      Repo
-	readModel ReadModel
+	repo                    Repo
+	readModel               ReadModel
+	rolePermissionRepo      RepoRolePermission
+	rolePermissionReadModel ReadModelRolePermission
 }
 
 // GetAll implements ReadData.
@@ -74,6 +77,48 @@ type ReadData interface {
 func NewReadData(
 	repo Repo,
 	readModel ReadModel,
+	rolePermissionRepo RepoRolePermission,
+	rolePermissionReadModel ReadModelRolePermission,
 ) ReadData {
-	return &services{repo: repo, readModel: readModel}
+	return &services{
+		repo:                    repo,
+		readModel:               readModel,
+		rolePermissionRepo:      rolePermissionRepo,
+		rolePermissionReadModel: rolePermissionReadModel,
+	}
+}
+
+type RolePermissionService interface {
+	GetPermission(ctx context.Context, rid ulid.ULID) (RolePermissionList, error)
+	AssignPermisson(ctx context.Context, rid, pid ulid.ULID) error
+}
+
+func NewRelePermissionService(
+	repo Repo,
+	readModel ReadModel,
+	rolePermissionRepo RepoRolePermission,
+	rolePermissionReadModel ReadModelRolePermission,
+) RolePermissionService {
+	return &services{
+		repo:                    repo,
+		readModel:               readModel,
+		rolePermissionRepo:      rolePermissionRepo,
+		rolePermissionReadModel: rolePermissionReadModel,
+	}
+}
+
+// AssignPermisson implements RolePermissionService.
+func (s *services) AssignPermisson(ctx context.Context, rid, pid ulid.ULID) error {
+	_, err := s.rolePermissionReadModel.Find(ctx, pid, rid)
+	if err != nil {
+		if errors.Is(err, ErrPermissionNotFound) {
+			return s.rolePermissionRepo.AssignPermission(ctx, rid, pid)
+		}
+	}
+	return ErrPermissionAlreadyAssigned
+}
+
+// GetPermission implements RolePermissionService.
+func (s *services) GetPermission(ctx context.Context, rid ulid.ULID) (RolePermissionList, error) {
+	return s.rolePermissionReadModel.FetchByRole(ctx, rid)
 }

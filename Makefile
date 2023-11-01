@@ -61,3 +61,6 @@ migup:
 
 migdown:
 	.tmp/migrate -path db/migrations -database "${PSQL}" -verbose down
+
+seed: 
+	./seed.sh
