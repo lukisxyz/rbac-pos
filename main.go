@@ -48,6 +48,8 @@ func main() {
 	oauthReadModel := oauth.NewReadModel(pool)
 	rolePermissionRepo := role.NewRepoRolePermission(pool)
 	rolePermissionReadModel := role.NewReadModelRolePermission(pool)
+	accountRoleRepo := account.NewRepoAccountRole(pool)
+	accountRoleReadModel := account.NewReadModelAccountRole(pool)
 
 	readDataPermission := permission.NewReadData(
 		permissionRepo,
@@ -86,11 +88,17 @@ func main() {
 		permissionReadModel,
 	)
 
-	rolePermissionSvc := role.NewRelePermissionService(
+	rolePermissionSvc := role.NewRolePermissionService(
 		roleRepo,
 		roleReadModel,
 		rolePermissionRepo,
 		rolePermissionReadModel,
+	)
+	accountRoleSvc := account.NewAccountRoleService(
+		accountRepo,
+		accountReadModel,
+		accountRoleRepo,
+		accountRoleReadModel,
 	)
 
 	permissionRoute := permission.NewRoute(
@@ -102,17 +110,29 @@ func main() {
 		readDataRole,
 		rolePermissionSvc,
 	)
+	rolePermissionRoute := role.NewPermissionRoute(
+		mutateDataRole,
+		readDataRole,
+		rolePermissionSvc,
+	)
 	accountRoute := account.NewRoute(
 		mutateDataAccount,
 		readDataAccount,
+	)
+	accountRoleRoute := account.NewRoleRoute(
+		mutateDataAccount,
+		readDataAccount,
+		accountRoleSvc,
 	)
 	oauthRoute := oauth.NewRoute(
 		oauthSvc,
 	)
 
 	r.Mount("/api/permission", permissionRoute.Routes())
+	r.Mount("/api/role-permission", rolePermissionRoute.Routes())
 	r.Mount("/api/role", roleRoute.Routes())
 	r.Mount("/api/account", accountRoute.Routes())
+	r.Mount("/api/account-role", accountRoleRoute.Routes())
 	r.Mount("/api", oauthRoute.Routes())
 
 	log.Info().Msg(fmt.Sprintf("starting up server on: %s", cfg.Listen.Addr()))

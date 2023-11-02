@@ -39,7 +39,7 @@ func (r *repo) FetchByPermission(ctx context.Context, id ulid.ULID) (PermissionR
 	var itemCount int
 	row := r.db.QueryRow(
 		ctx,
-		`SELECT COUNT(id) as c FROM role_permissions WHERE permission_id = $1`,
+		`SELECT COUNT(*) as c FROM role_permissions WHERE permission_id = $1`,
 		id,
 	)
 	if err := row.Scan(&itemCount); err != nil {
@@ -257,8 +257,24 @@ func (r *repo) AssignPermission(ctx context.Context, roleId, permissionId ulid.U
 }
 
 // RemovePermission implements RepoRolePermission.
-func (*repo) RemovePermission(ctx context.Context, roleId, permissionId ulid.ULID) error {
-	panic("unimplemented")
+func (r *repo) RemovePermission(ctx context.Context, roleId, permissionId ulid.ULID) error {
+	_, err := r.db.Exec(
+		ctx,
+		`
+			DELETE FROM role_permissions 
+			WHERE permission_id = $1 AND role_id = $2;
+		`,
+		permissionId,
+		roleId,
+	)
+	if err != nil {
+		pqErr := err.(*pgconn.PgError)
+		if pqErr.Code == "23505" {
+			return ErrPermissionNotFound
+		}
+		return err
+	}
+	return nil
 }
 
 func NewRepoRolePermission(db *pgxpool.Pool) RepoRolePermission {

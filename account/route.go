@@ -212,3 +212,146 @@ func (p *accountRoute) getAllAccount(
 	meta.Total = data.Count
 	writeData(w, http.StatusOK, data.Accounts, meta)
 }
+
+type accountRoleRoute struct {
+	mutate         MutationData
+	read           ReadData
+	accountRoleSvc RoleAccountService
+}
+
+func NewRoleRoute(
+	mutate MutationData,
+	read ReadData,
+	accountRoleSvc RoleAccountService,
+) *accountRoleRoute {
+	return &accountRoleRoute{
+		mutate:         mutate,
+		read:           read,
+		accountRoleSvc: accountRoleSvc,
+	}
+}
+
+func (p *accountRoleRoute) Routes() *chi.Mux {
+	r := chi.NewMux()
+	r.Get("/{id}/role", p.getListRole)
+	r.Post("/", p.assignRole)
+	r.Delete("/", p.deleteRole)
+	r.Get("/{id}/account", p.getRole)
+	return r
+}
+
+func (p *accountRoleRoute) getRole(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	idStr := chi.URLParam(r, "id")
+	id, err := ulid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	ctx := r.Context()
+
+	data, err := p.accountRoleSvc.GetAccount(ctx, id)
+	if err != nil {
+		if errors.Is(err, ErrRoleNotFound) {
+			writeError(w, http.StatusNotFound, err)
+			return
+		}
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	var meta struct {
+		Total int `json:"total"`
+	}
+	meta.Total = data.Count
+	writeData(w, http.StatusOK, data.Accounts, meta)
+}
+
+func (p *accountRoleRoute) getListRole(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	idStr := chi.URLParam(r, "id")
+	id, err := ulid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	ctx := r.Context()
+
+	data, err := p.accountRoleSvc.GetRoleByAccount(ctx, id)
+	if err != nil {
+		if errors.Is(err, ErrRoleNotFound) {
+			writeError(w, http.StatusNotFound, err)
+			return
+		}
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	var meta struct {
+		Total int `json:"total"`
+	}
+	meta.Total = data.Count
+	writeData(w, http.StatusOK, data.Roles, meta)
+}
+
+type assignRoleRequest struct {
+	AccountId ulid.ULID `json:"account_id" validate:"required"`
+	RoleId    ulid.ULID `json:"role_id" validate:"required"`
+}
+
+func (c assignRoleRequest) Validate() error {
+	return validation.ValidateStruct(
+		&c,
+		validation.Field(&c.AccountId, validation.Required),
+		validation.Field(&c.RoleId, validation.Required),
+	)
+}
+
+func (p *accountRoleRoute) assignRole(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	var body assignRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := body.Validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	ctx := r.Context()
+
+	err := p.accountRoleSvc.AssignRole(ctx, body.RoleId, body.AccountId)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeMessage(w, http.StatusCreated, "success assign a role")
+}
+func (p *accountRoleRoute) deleteRole(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	var body assignRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := body.Validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	ctx := r.Context()
+
+	err := p.accountRoleSvc.DeleteRole(ctx, body.RoleId, body.AccountId)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeMessage(w, http.StatusOK, "success remove a role")
+}

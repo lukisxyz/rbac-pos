@@ -15,6 +15,11 @@ type Account struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type AccountRole struct {
+	RoleId    ulid.ULID `json:"role_id"`
+	AccountId ulid.ULID `json:"account_id"`
+}
+
 func newAccount(email, pwd string) (Account, error) {
 	id := ulid.Make()
 	bytes, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)

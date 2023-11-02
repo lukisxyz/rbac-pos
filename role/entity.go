@@ -2,6 +2,7 @@ package role
 
 import (
 	"encoding/json"
+	"pos/permission"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -29,16 +30,20 @@ func newRole(name, desc string) Role {
 	}
 }
 
-func (a *Role) MarshalJSON() ([]byte, error) {
+func (a *ReadRoleResponse) MarshalJSON() ([]byte, error) {
 	var j struct {
-		Id   ulid.ULID `json:"id"`
-		Name string    `json:"name"`
-		Desc string    `json:"description"`
+		Id              ulid.ULID               `json:"id"`
+		Name            string                  `json:"name"`
+		Desc            string                  `json:"description"`
+		TotalPermission int                     `json:"total_permission"`
+		Permissions     []permission.Permission `json:"permissions"`
 	}
 
 	j.Id = a.Id
 	j.Name = a.Name
 	j.Desc = a.Description
+	j.TotalPermission = a.TotalPermissions
+	j.Permissions = a.Permissions
 
 	return json.Marshal(j)
 }

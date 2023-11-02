@@ -34,8 +34,6 @@ func (p *roleRoute) Routes() *chi.Mux {
 	r.Get("/", p.getAllRole)
 	r.Get("/{id}", p.getOneRole)
 	r.Patch("/{id}", p.updateRole)
-	r.Post("/permission", p.assignPermission)
-	r.Get("/{id}/permission", p.getPermission)
 	r.Delete("/{id}", p.deleteRole)
 	return r
 }
@@ -74,71 +72,6 @@ func writeData(w http.ResponseWriter, status int, data, meta any) {
 
 func writeError(w http.ResponseWriter, status int, err error) {
 	writeMessage(w, status, err.Error())
-}
-
-func (p *roleRoute) getPermission(
-	w http.ResponseWriter,
-	r *http.Request,
-) {
-	idStr := chi.URLParam(r, "id")
-	id, err := ulid.Parse(idStr)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
-		return
-	}
-	ctx := r.Context()
-
-	data, err := p.rolePermission.GetPermission(ctx, id)
-	if err != nil {
-		if errors.Is(err, ErrPermissionNotFound) {
-			writeError(w, http.StatusNotFound, err)
-			return
-		}
-		writeError(w, http.StatusBadRequest, err)
-		return
-	}
-	var meta struct {
-		Total int `json:"total"`
-	}
-	meta.Total = data.Count
-	writeData(w, http.StatusOK, data.Permissions, meta)
-}
-
-type assignPermissionRequest struct {
-	PermissionId ulid.ULID `json:"permission_id" validate:"required"`
-	RoleId       ulid.ULID `json:"role_id" validate:"required"`
-}
-
-func (c assignPermissionRequest) Validate() error {
-	return validation.ValidateStruct(
-		&c,
-		validation.Field(&c.PermissionId, validation.Required),
-		validation.Field(&c.RoleId, validation.Required),
-	)
-}
-
-func (p *roleRoute) assignPermission(
-	w http.ResponseWriter,
-	r *http.Request,
-) {
-	var body assignPermissionRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeError(w, http.StatusBadRequest, err)
-		return
-	}
-
-	if err := body.Validate(); err != nil {
-		writeError(w, http.StatusBadRequest, err)
-		return
-	}
-	ctx := r.Context()
-
-	err := p.rolePermission.AssignPermisson(ctx, body.RoleId, body.PermissionId)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
-		return
-	}
-	writeMessage(w, http.StatusCreated, "success assign a permission")
 }
 
 func (p *roleRoute) deleteRole(
@@ -265,4 +198,148 @@ func (p *roleRoute) getAllRole(
 	}
 	meta.Total = data.Count
 	writeData(w, http.StatusOK, data.Roles, meta)
+}
+
+type permissionRoleRoute struct {
+	mutate         MutationData
+	read           ReadData
+	rolePermission RolePermissionService
+}
+
+func NewPermissionRoute(
+	mutate MutationData,
+	read ReadData,
+	rolePermission RolePermissionService,
+) *permissionRoleRoute {
+	return &permissionRoleRoute{
+		mutate:         mutate,
+		read:           read,
+		rolePermission: rolePermission,
+	}
+}
+
+func (p *permissionRoleRoute) Routes() *chi.Mux {
+	r := chi.NewMux()
+	r.Get("/{id}/role", p.getListRole)
+	r.Post("/", p.assignPermission)
+	r.Delete("/", p.deletePermission)
+	r.Get("/{id}/permission", p.getPermission)
+	return r
+}
+
+func (p *permissionRoleRoute) getPermission(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	idStr := chi.URLParam(r, "id")
+	id, err := ulid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	ctx := r.Context()
+
+	data, err := p.rolePermission.GetPermission(ctx, id)
+	if err != nil {
+		if errors.Is(err, ErrPermissionNotFound) {
+			writeError(w, http.StatusNotFound, err)
+			return
+		}
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	var meta struct {
+		Total int `json:"total"`
+	}
+	meta.Total = data.Count
+	writeData(w, http.StatusOK, data.Permissions, meta)
+}
+
+func (p *permissionRoleRoute) getListRole(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	idStr := chi.URLParam(r, "id")
+	id, err := ulid.Parse(idStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	ctx := r.Context()
+
+	data, err := p.rolePermission.GetRoleByPermission(ctx, id)
+	if err != nil {
+		if errors.Is(err, ErrPermissionNotFound) {
+			writeError(w, http.StatusNotFound, err)
+			return
+		}
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	var meta struct {
+		Total int `json:"total"`
+	}
+	meta.Total = data.Count
+	writeData(w, http.StatusOK, data.Roles, meta)
+}
+
+type assignPermissionRequest struct {
+	PermissionId ulid.ULID `json:"permission_id" validate:"required"`
+	RoleId       ulid.ULID `json:"role_id" validate:"required"`
+}
+
+func (c assignPermissionRequest) Validate() error {
+	return validation.ValidateStruct(
+		&c,
+		validation.Field(&c.PermissionId, validation.Required),
+		validation.Field(&c.RoleId, validation.Required),
+	)
+}
+
+func (p *permissionRoleRoute) assignPermission(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	var body assignPermissionRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := body.Validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	ctx := r.Context()
+
+	err := p.rolePermission.AssignPermisson(ctx, body.RoleId, body.PermissionId)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeMessage(w, http.StatusCreated, "success assign a permission")
+}
+
+func (p *permissionRoleRoute) deletePermission(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	var body assignPermissionRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := body.Validate(); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	ctx := r.Context()
+
+	err := p.rolePermission.DeletePermission(ctx, body.RoleId, body.PermissionId)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeMessage(w, http.StatusCreated, "success remove a permission")
 }
