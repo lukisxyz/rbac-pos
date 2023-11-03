@@ -5,10 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"pos/account"
-	"pos/oauth"
-	"pos/permission"
-	"pos/role"
+	"pos/internal/account"
+	custommiddleware "pos/internal/custom_middleware"
+	"pos/internal/oauth"
+	"pos/internal/permission"
+	"pos/internal/protected"
+	"pos/internal/role"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -32,6 +34,7 @@ func main() {
 	if err != nil {
 		log.Error().Err(err).Msg("unable to connect to database")
 	}
+	custommiddleware.SetJwtSecret(cfg.JwtCfg.Secret)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
@@ -126,14 +129,20 @@ func main() {
 	)
 	oauthRoute := oauth.NewRoute(
 		oauthSvc,
+		cfg.JwtCfg.Secret,
 	)
-
-	r.Mount("/api/permission", permissionRoute.Routes())
-	r.Mount("/api/role-permission", rolePermissionRoute.Routes())
-	r.Mount("/api/role", roleRoute.Routes())
-	r.Mount("/api/account", accountRoute.Routes())
-	r.Mount("/api/account-role", accountRoleRoute.Routes())
 	r.Mount("/api", oauthRoute.Routes())
+
+	r.Group(func(rt chi.Router) {
+		rt.Use(custommiddleware.AuthJwtMiddleware)
+		rt.Mount("/api/permission", permissionRoute.Routes())
+		rt.Mount("/api/role-permission", rolePermissionRoute.Routes())
+		rt.Mount("/api/role", roleRoute.Routes())
+		rt.Mount("/api/account", accountRoute.Routes())
+		rt.Mount("/api/account-role", accountRoleRoute.Routes())
+	})
+
+	r.Mount("/api/dashboard", protected.Routes())
 
 	log.Info().Msg(fmt.Sprintf("starting up server on: %s", cfg.Listen.Addr()))
 	server := &http.Server{
