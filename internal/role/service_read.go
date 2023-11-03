@@ -2,7 +2,7 @@ package role
 
 import (
 	"context"
-	"pos/internal/permission"
+	"pos/domain"
 
 	"github.com/oklog/ulid/v2"
 )
@@ -19,14 +19,8 @@ func (s *services) GetAll(ctx context.Context) (RoleList, error) {
 	return s.readModel.Fetch(ctx)
 }
 
-type ReadRoleResponse struct {
-	Role
-	TotalPermissions int                     `json:"total_permission"`
-	Permissions      []permission.Permission `json:"permissions"`
-}
-
 // GetOneById implements ReadData.
-func (s *services) GetOneById(ctx context.Context, id ulid.ULID) (*ReadRoleResponse, error) {
+func (s *services) GetOneById(ctx context.Context, id ulid.ULID) (*domain.ReadRoleResponse, error) {
 	role, err := s.readModel.FindById(ctx, id)
 	if err != nil {
 		return nil, err
@@ -35,7 +29,7 @@ func (s *services) GetOneById(ctx context.Context, id ulid.ULID) (*ReadRoleRespo
 	if err != nil {
 		return nil, err
 	}
-	data := ReadRoleResponse{
+	data := domain.ReadRoleResponse{
 		Role:             *role,
 		TotalPermissions: permissionList.Count,
 		Permissions:      permissionList.Permissions,
@@ -45,7 +39,7 @@ func (s *services) GetOneById(ctx context.Context, id ulid.ULID) (*ReadRoleRespo
 
 type ReadData interface {
 	GetAll(ctx context.Context) (RoleList, error)
-	GetOneById(ctx context.Context, id ulid.ULID) (*ReadRoleResponse, error)
+	GetOneById(ctx context.Context, id ulid.ULID) (*domain.ReadRoleResponse, error)
 }
 
 func NewReadData(

@@ -3,6 +3,7 @@ package oauth
 import (
 	"context"
 	"errors"
+	"pos/domain"
 	"pos/internal/account"
 	"pos/internal/permission"
 	"pos/internal/role"
@@ -36,8 +37,8 @@ func (s *serviceOauth) RefreshToken(ctx context.Context, refreshToken string, ui
 		return
 	}
 	jwtKey := []byte(s.secret)
-	accessExpTime := time.Now().Add(time.Duration(s.accessExpTime) * time.Second)
-	claims := &Oauth{
+	accessExpTime := time.Now().Add(time.Duration(s.accessExpTime) * time.Hour)
+	claims := &domain.Oauth{
 		Id:    uid,
 		Email: email,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -49,7 +50,7 @@ func (s *serviceOauth) RefreshToken(ctx context.Context, refreshToken string, ui
 }
 
 // Login implements ServiceOAuth.
-func (s *serviceOauth) Login(ctx context.Context, email, password string) (res *LoginResponse, err error) {
+func (s *serviceOauth) Login(ctx context.Context, email, password string) (res *domain.LoginResponse, permissions []string, err error) {
 	acc, err := s.accountReadModel.FindByEmail(ctx, email)
 	if err != nil {
 		return
@@ -59,7 +60,7 @@ func (s *serviceOauth) Login(ctx context.Context, email, password string) (res *
 		[]byte(acc.Password),
 		[]byte(password),
 	); err != nil {
-		return nil, ErrPasswordWrong
+		return nil, permissions, ErrPasswordWrong
 	}
 
 	refreshExpTime := time.Now().Add(time.Duration(s.refreshExpTime) * 24 * time.Hour)
@@ -67,8 +68,8 @@ func (s *serviceOauth) Login(ctx context.Context, email, password string) (res *
 	jwtKey := []byte(s.secret)
 	tokenRefreshString := utils.RandString(24)
 
-	accessExpTime := time.Now().Add(time.Duration(s.accessExpTime) * time.Minute)
-	claims := &Oauth{
+	accessExpTime := time.Now().Add(time.Duration(s.accessExpTime) * time.Hour)
+	claims := &domain.Oauth{
 		Id:    acc.Id,
 		Email: acc.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -82,7 +83,7 @@ func (s *serviceOauth) Login(ctx context.Context, email, password string) (res *
 		return
 	}
 
-	oauthToken := LoginResponse{
+	oauthToken := domain.LoginResponse{
 		AccessToken:  tokenAccessString,
 		RefreshToken: tokenRefreshString,
 		Type:         "Bearer",
@@ -90,11 +91,17 @@ func (s *serviceOauth) Login(ctx context.Context, email, password string) (res *
 		Scope:        "*",
 	}
 
-	refreshToken := NewRefreshToken(
+	refreshToken := domain.NewRefreshToken(
 		acc.Id,
 		tokenRefreshString,
 		refreshExpTime,
 	)
+
+	data, err := s.readModel.GetPermissionById(ctx, acc.Id)
+	if err != nil {
+		return
+	}
+	permissions = data.Permissions
 
 	_, err = s.readModel.FindByUserID(ctx, acc.Id)
 	if errors.Is(err, ErrRefreshTokenNotFound) {
@@ -103,25 +110,24 @@ func (s *serviceOauth) Login(ctx context.Context, email, password string) (res *
 			return
 		}
 
-		return &oauthToken, nil
+		return &oauthToken, permissions, nil
 	}
 	err = ErrAlreadyLogin
 	return
 }
 
 // Logout implements ServiceOAuth.
-func (s *serviceOauth) Logout(ctx context.Context, id ulid.ULID) error {
-	currentData, err := s.readModel.FindByUserID(ctx, id)
+func (s *serviceOauth) Logout(ctx context.Context, token string) error {
+	currentData, err := s.readModel.FindByToken(ctx, token)
 	if err != nil {
 		return err
 	}
-	currentData.Revoked = true
-	return s.repo.Save(ctx, currentData)
+	return s.repo.Revoke(ctx, currentData)
 }
 
 type ServiceOAuth interface {
-	Login(ctx context.Context, email, pwd string) (*LoginResponse, error)
-	Logout(ctx context.Context, id ulid.ULID) error
+	Login(ctx context.Context, email, pwd string) (*domain.LoginResponse, []string, error)
+	Logout(ctx context.Context, token string) error
 	RefreshToken(ctx context.Context, refreshToken string, uid ulid.ULID, email string) (accessToken string, err error)
 }
 

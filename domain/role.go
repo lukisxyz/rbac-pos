@@ -1,8 +1,7 @@
-package role
+package domain
 
 import (
 	"encoding/json"
-	"pos/internal/permission"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -20,7 +19,7 @@ type RolePermission struct {
 	RoleId       ulid.ULID `json:"role_id"`
 }
 
-func newRole(name, desc string) Role {
+func NewRole(name, desc string) Role {
 	id := ulid.Make()
 	return Role{
 		Id:          id,
@@ -30,13 +29,19 @@ func newRole(name, desc string) Role {
 	}
 }
 
+type ReadRoleResponse struct {
+	Role
+	TotalPermissions int      `json:"total_permission"`
+	Permissions      []string `json:"permissions"`
+}
+
 func (a *ReadRoleResponse) MarshalJSON() ([]byte, error) {
 	var j struct {
-		Id              ulid.ULID               `json:"id"`
-		Name            string                  `json:"name"`
-		Desc            string                  `json:"description"`
-		TotalPermission int                     `json:"total_permission"`
-		Permissions     []permission.Permission `json:"permissions"`
+		Id              ulid.ULID `json:"id"`
+		Name            string    `json:"name"`
+		Desc            string    `json:"description"`
+		TotalPermission int       `json:"total_permission"`
+		Permissions     []string  `json:"permissions"`
 	}
 
 	j.Id = a.Id

@@ -3,10 +3,10 @@ package role
 import (
 	"context"
 	"errors"
+	"pos/domain"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/oklog/ulid/v2"
 )
 
 var (
@@ -18,24 +18,8 @@ type repo struct {
 	db *pgxpool.Pool
 }
 
-func (r *repo) Revoke(ctx context.Context, id ulid.ULID) error {
-	query := `
-		UPDATE refresh_tokens
-		SET revoked = TRUE
-		WHERE id = $1;
-	`
-	if _, err := r.db.Exec(
-		ctx,
-		query,
-		id,
-	); err != nil {
-		return err
-	}
-	return nil
-}
-
 // Delete implements Repo.
-func (r *repo) Delete(ctx context.Context, data *Role) error {
+func (r *repo) Delete(ctx context.Context, data *domain.Role) error {
 	_, err := r.db.Exec(
 		ctx,
 		`
@@ -51,7 +35,7 @@ func (r *repo) Delete(ctx context.Context, data *Role) error {
 }
 
 // Save implements Repo.
-func (r *repo) Save(ctx context.Context, data *Role) error {
+func (r *repo) Save(ctx context.Context, data *domain.Role) error {
 	_, err := r.db.Exec(
 		ctx,
 		`
@@ -85,8 +69,8 @@ func (r *repo) Save(ctx context.Context, data *Role) error {
 }
 
 type Repo interface {
-	Save(ctx context.Context, data *Role) error
-	Delete(ctx context.Context, data *Role) error
+	Save(ctx context.Context, data *domain.Role) error
+	Delete(ctx context.Context, data *domain.Role) error
 }
 
 func NewRepo(db *pgxpool.Pool) Repo {

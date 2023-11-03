@@ -1,4 +1,4 @@
-package account
+package domain
 
 import (
 	"encoding/json"
@@ -20,7 +20,7 @@ type AccountRole struct {
 	AccountId ulid.ULID `json:"account_id"`
 }
 
-func newAccount(email, pwd string) (Account, error) {
+func NewAccount(email, pwd string) (Account, error) {
 	id := ulid.Make()
 	bytes, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
 	return Account{

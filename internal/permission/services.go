@@ -2,6 +2,7 @@ package permission
 
 import (
 	"context"
+	"pos/domain"
 
 	"github.com/oklog/ulid/v2"
 )
@@ -17,18 +18,18 @@ func (s *services) GetAll(ctx context.Context) (PermissionList, error) {
 }
 
 // GetOneById implements ReadData.
-func (s *services) GetOneById(ctx context.Context, id ulid.ULID) (*Permission, error) {
+func (s *services) GetOneById(ctx context.Context, id ulid.ULID) (*domain.Permission, error) {
 	return s.readModel.FindById(ctx, id)
 }
 
 // GetOneByUrl implements ReadData.
-func (*services) GetOneByUrl(ctx context.Context, url string) (*Permission, error) {
+func (*services) GetOneByUrl(ctx context.Context, url string) (*domain.Permission, error) {
 	panic("unimplemented")
 }
 
 // CreatePermission implements MutationData.
-func (s *services) CreatePermission(ctx context.Context, name, desc, url string) (*Permission, error) {
-	newData := newPermission(name, desc, url)
+func (s *services) CreatePermission(ctx context.Context, name, desc, url string) (*domain.Permission, error) {
+	newData := domain.NewPermission(name, desc, url)
 	if err := s.repo.Save(ctx, &newData); err != nil {
 		return nil, err
 	}
@@ -45,7 +46,7 @@ func (s *services) DeletePermission(ctx context.Context, id ulid.ULID) error {
 }
 
 // EditPermission implements MutationData.
-func (s *services) EditPermission(ctx context.Context, id ulid.ULID, name, desc, url string) (*Permission, error) {
+func (s *services) EditPermission(ctx context.Context, id ulid.ULID, name, desc, url string) (*domain.Permission, error) {
 	currentData, err := s.readModel.FindById(ctx, id)
 	if err != nil {
 		return nil, err
@@ -60,8 +61,8 @@ func (s *services) EditPermission(ctx context.Context, id ulid.ULID, name, desc,
 }
 
 type MutationData interface {
-	CreatePermission(ctx context.Context, name, desc, url string) (*Permission, error)
-	EditPermission(ctx context.Context, id ulid.ULID, name, desc, url string) (*Permission, error)
+	CreatePermission(ctx context.Context, name, desc, url string) (*domain.Permission, error)
+	EditPermission(ctx context.Context, id ulid.ULID, name, desc, url string) (*domain.Permission, error)
 	DeletePermission(ctx context.Context, id ulid.ULID) error
 }
 
@@ -74,8 +75,8 @@ func NewMutationData(
 
 type ReadData interface {
 	GetAll(ctx context.Context) (PermissionList, error)
-	GetOneById(ctx context.Context, id ulid.ULID) (*Permission, error)
-	GetOneByUrl(ctx context.Context, url string) (*Permission, error)
+	GetOneById(ctx context.Context, id ulid.ULID) (*domain.Permission, error)
+	GetOneByUrl(ctx context.Context, url string) (*domain.Permission, error)
 }
 
 func NewReadData(

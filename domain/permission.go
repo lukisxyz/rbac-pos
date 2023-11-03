@@ -1,4 +1,4 @@
-package permission
+package domain
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ type Permission struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-func newPermission(name, desc, url string) Permission {
+func NewPermission(name, desc, url string) Permission {
 	id := ulid.Make()
 	return Permission{
 		Id:          id,

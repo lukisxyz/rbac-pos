@@ -1,22 +1,15 @@
 #!/bin/bash
 
-# Define the server URL
+# Define the server URL and Bearer token
 SERVER_URL="http://localhost:8080"
-
-# Function to create an account
-create_account() {
-  email="$1"
-  password="$2"
-  data='{"email":"'$email'", "password":"'$password'"}'
-  curl -X POST -H "Content-Type: application/json" -d "$data" "$SERVER_URL/api/account"
-}
+BEARER_TOKEN=$1
 
 # Function to create a role
 create_role() {
   name="$1"
   description="$2"
   data='{"name":"'$name'", "description":"'$description'"}'
-  curl -X POST -H "Content-Type: application/json" -d "$data" "$SERVER_URL/api/role"
+  curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $BEARER_TOKEN" -d "$data" "$SERVER_URL/api/role"
 }
 
 # Function to create a permission
@@ -25,13 +18,8 @@ create_permission() {
   description="$2"
   url="$3"
   data='{"name":"'$name'", "description":"'$description'", "url":"'$url'"}'
-  curl -X POST -H "Content-Type: application/json" -d "$data" "$SERVER_URL/api/permission"
+  curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $BEARER_TOKEN" -d "$data" "$SERVER_URL/api/permission"
 }
-
-# Create 10 accounts
-for i in {1..10}; do
-  create_account "user$i@example.com" "password$i"
-done
 
 # Create 3 roles
 create_role "Cashier" "Responsible for processing sales and refunds."

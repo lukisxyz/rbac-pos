@@ -4,17 +4,12 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"pos/internal/oauth"
+	"pos/domain"
 	"pos/utils/httpresponse"
+	"pos/utils/key"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-)
-
-type key int
-
-const (
-	UserValueKey key = iota
 )
 
 var jwtSecret = ""
@@ -36,7 +31,7 @@ func AuthJwtMiddleware(next http.Handler) http.Handler {
 			}
 
 			jwtToken := splittedToken[1]
-			claims := &oauth.Oauth{}
+			claims := &domain.Oauth{}
 
 			token, err := jwt.ParseWithClaims(
 				jwtToken,
@@ -58,7 +53,7 @@ func AuthJwtMiddleware(next http.Handler) http.Handler {
 
 			c := context.WithValue(
 				ctx,
-				UserValueKey,
+				key.UserValueKey,
 				claims,
 			)
 			next.ServeHTTP(w, r.WithContext(c))

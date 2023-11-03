@@ -27,9 +27,29 @@ func NewRoute(
 	}
 }
 
-func (p *accountRoute) Routes() *chi.Mux {
+type publicAccountRoute struct {
+	mutate MutationData
+	read   ReadData
+}
+
+func NewPublicRoute(
+	mutate MutationData,
+	read ReadData,
+) *publicAccountRoute {
+	return &publicAccountRoute{
+		mutate: mutate,
+		read:   read,
+	}
+}
+
+func (p *publicAccountRoute) Routes() *chi.Mux {
 	r := chi.NewMux()
 	r.Post("/", p.createAccount)
+	return r
+}
+
+func (p *accountRoute) Routes() *chi.Mux {
+	r := chi.NewMux()
 	r.Get("/", p.getAllAccount)
 	r.Get("/{id}", p.getOneAccount)
 	r.Patch("/password/{id}", p.updatePassword)
@@ -111,7 +131,7 @@ func (c createAccountRequest) Validate() error {
 	)
 }
 
-func (p *accountRoute) createAccount(
+func (p *publicAccountRoute) createAccount(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {

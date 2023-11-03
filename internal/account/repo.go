@@ -3,6 +3,7 @@ package account
 import (
 	"context"
 	"errors"
+	"pos/domain"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,7 +19,7 @@ type repo struct {
 }
 
 // Delete implements Repo.
-func (r *repo) Delete(ctx context.Context, data *Account) error {
+func (r *repo) Delete(ctx context.Context, data *domain.Account) error {
 	_, err := r.db.Exec(
 		ctx,
 		`
@@ -34,7 +35,7 @@ func (r *repo) Delete(ctx context.Context, data *Account) error {
 }
 
 // Save implements Repo.
-func (r *repo) Save(ctx context.Context, data *Account) error {
+func (r *repo) Save(ctx context.Context, data *domain.Account) error {
 	_, err := r.db.Exec(
 		ctx,
 		`
@@ -68,8 +69,8 @@ func (r *repo) Save(ctx context.Context, data *Account) error {
 }
 
 type Repo interface {
-	Save(ctx context.Context, data *Account) error
-	Delete(ctx context.Context, data *Account) error
+	Save(ctx context.Context, data *domain.Account) error
+	Delete(ctx context.Context, data *domain.Account) error
 }
 
 func NewRepo(db *pgxpool.Pool) Repo {

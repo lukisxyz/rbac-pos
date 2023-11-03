@@ -3,6 +3,7 @@ package role
 import (
 	"context"
 	"errors"
+	"pos/domain"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -12,12 +13,12 @@ import (
 )
 
 type RoleList struct {
-	Roles []Role `json:"data"`
-	Count int    `json:"count"`
+	Roles []domain.Role `json:"data"`
+	Count int           `json:"count"`
 }
 
 var emptyList = RoleList{
-	Roles: []Role{},
+	Roles: []domain.Role{},
 	Count: 0,
 }
 
@@ -38,7 +39,7 @@ func (r *repo) Fetch(ctx context.Context) (RoleList, error) {
 		return emptyList, nil
 	}
 	log.Debug().Int("count", itemCount).Msg("found Role items")
-	items := make([]Role, itemCount)
+	items := make([]domain.Role, itemCount)
 	rows, err := r.db.Query(
 		ctx,
 		`
@@ -76,7 +77,7 @@ func (r *repo) Fetch(ctx context.Context) (RoleList, error) {
 			log.Warn().Err(err).Msg("cannot scan an item")
 			return emptyList, err
 		}
-		items[count] = Role{
+		items[count] = domain.Role{
 			Id:          id,
 			Name:        name,
 			Description: desc,
@@ -91,7 +92,7 @@ func (r *repo) Fetch(ctx context.Context) (RoleList, error) {
 }
 
 // FindById implements ReadModel.
-func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*Role, error) {
+func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*domain.Role, error) {
 	row := r.db.QueryRow(
 		ctx,
 		`
@@ -107,7 +108,7 @@ func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*Role, error) {
 		`,
 		id,
 	)
-	var data Role
+	var data domain.Role
 	if err := row.Scan(
 		&data.Id,
 		&data.Name,
@@ -124,7 +125,7 @@ func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*Role, error) {
 
 type ReadModel interface {
 	Fetch(ctx context.Context) (RoleList, error)
-	FindById(ctx context.Context, id ulid.ULID) (*Role, error)
+	FindById(ctx context.Context, id ulid.ULID) (*domain.Role, error)
 }
 
 func NewReadModel(db *pgxpool.Pool) ReadModel {

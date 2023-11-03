@@ -3,6 +3,7 @@ package oauth
 import (
 	"context"
 	"errors"
+	"pos/domain"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -12,8 +13,8 @@ import (
 )
 
 var (
-	ErrRefreshTokenNotFound     = errors.New("RefreshToken: not found")
-	ErrRefreshTokenAlreadyExist = errors.New("RefreshToken: url already exists")
+	ErrRefreshTokenNotFound     = errors.New("refresh token: not found")
+	ErrRefreshTokenAlreadyExist = errors.New("refresh token: url already exists")
 )
 
 type repo struct {
@@ -21,12 +22,12 @@ type repo struct {
 }
 
 type RefreshTokenList struct {
-	RefreshTokens []RefreshToken `json:"data"`
-	Count         int            `json:"count"`
+	RefreshTokens []domain.RefreshToken `json:"data"`
+	Count         int                   `json:"count"`
 }
 
 var emptyList = RefreshTokenList{
-	RefreshTokens: []RefreshToken{},
+	RefreshTokens: []domain.RefreshToken{},
 	Count:         0,
 }
 
@@ -47,7 +48,7 @@ func (r *repo) Fetch(ctx context.Context) (RefreshTokenList, error) {
 		return emptyList, nil
 	}
 	log.Debug().Int("count", itemCount).Msg("found RefreshToken items")
-	items := make([]RefreshToken, itemCount)
+	items := make([]domain.RefreshToken, itemCount)
 	rows, err := r.db.Query(
 		ctx,
 		`
@@ -91,7 +92,7 @@ func (r *repo) Fetch(ctx context.Context) (RefreshTokenList, error) {
 			log.Warn().Err(err).Msg("cannot scan an item")
 			return emptyList, err
 		}
-		items[count] = RefreshToken{
+		items[count] = domain.RefreshToken{
 			ID:         id,
 			TokenValue: tokenValue,
 			UserID:     userId,
@@ -108,7 +109,7 @@ func (r *repo) Fetch(ctx context.Context) (RefreshTokenList, error) {
 }
 
 // FindById implements ReadModel.
-func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*RefreshToken, error) {
+func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*domain.RefreshToken, error) {
 	query := `
 		SELECT
 			id,
@@ -129,7 +130,7 @@ func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*RefreshToken, error
 		query,
 		id,
 	)
-	var item RefreshToken
+	var item domain.RefreshToken
 	if err := row.Scan(
 		&item.ID,
 		&item.TokenValue,
@@ -140,15 +141,15 @@ func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*RefreshToken, error
 	); err != nil {
 		if err == pgx.ErrNoRows {
 			log.Debug().Err(err).Msg("can't find any item")
-			return &RefreshToken{}, ErrRefreshTokenNotFound
+			return &domain.RefreshToken{}, ErrRefreshTokenNotFound
 		}
-		return &RefreshToken{}, err
+		return &domain.RefreshToken{}, err
 	}
 	return &item, nil
 }
 
 // FindById implements ReadModel.
-func (r *repo) FindByUserID(ctx context.Context, id ulid.ULID) (*RefreshToken, error) {
+func (r *repo) FindByUserID(ctx context.Context, id ulid.ULID) (*domain.RefreshToken, error) {
 	query := `
 		SELECT
 			id,
@@ -169,7 +170,7 @@ func (r *repo) FindByUserID(ctx context.Context, id ulid.ULID) (*RefreshToken, e
 		query,
 		id,
 	)
-	var item RefreshToken
+	var item domain.RefreshToken
 	if err := row.Scan(
 		&item.ID,
 		&item.TokenValue,
@@ -180,15 +181,15 @@ func (r *repo) FindByUserID(ctx context.Context, id ulid.ULID) (*RefreshToken, e
 	); err != nil {
 		if err == pgx.ErrNoRows {
 			log.Debug().Err(err).Msg("can't find any item")
-			return &RefreshToken{}, ErrRefreshTokenNotFound
+			return &domain.RefreshToken{}, ErrRefreshTokenNotFound
 		}
-		return &RefreshToken{}, err
+		return &domain.RefreshToken{}, err
 	}
 	return &item, nil
 }
 
 // FindById implements ReadModel.
-func (r *repo) FindByToken(ctx context.Context, token string) (*RefreshToken, error) {
+func (r *repo) FindByToken(ctx context.Context, token string) (*domain.RefreshToken, error) {
 	query := `
 		SELECT
 			id,
@@ -200,7 +201,7 @@ func (r *repo) FindByToken(ctx context.Context, token string) (*RefreshToken, er
 		FROM
 			refresh_tokens
 		WHERE
-		token_value = $1
+			token_value = $1
 			AND expires_at > NOW()  
 			AND revoked = false;   
 	`
@@ -209,7 +210,7 @@ func (r *repo) FindByToken(ctx context.Context, token string) (*RefreshToken, er
 		query,
 		token,
 	)
-	var item RefreshToken
+	var item domain.RefreshToken
 	if err := row.Scan(
 		&item.ID,
 		&item.TokenValue,
@@ -220,15 +221,15 @@ func (r *repo) FindByToken(ctx context.Context, token string) (*RefreshToken, er
 	); err != nil {
 		if err == pgx.ErrNoRows {
 			log.Debug().Err(err).Msg("can't find any item")
-			return &RefreshToken{}, ErrRefreshTokenNotFound
+			return &domain.RefreshToken{}, ErrRefreshTokenNotFound
 		}
-		return &RefreshToken{}, err
+		return &domain.RefreshToken{}, err
 	}
 	return &item, nil
 }
 
 // Save implements Repo.
-func (r *repo) Save(ctx context.Context, data *RefreshToken) error {
+func (r *repo) Save(ctx context.Context, data *domain.RefreshToken) error {
 	query := `
 		INSERT INTO refresh_tokens
 			(id, token_value, account_id, created_at, expires_at, revoked)
@@ -252,15 +253,82 @@ func (r *repo) Save(ctx context.Context, data *RefreshToken) error {
 	return nil
 }
 
+// Save implements Repo.
+func (r *repo) Revoke(ctx context.Context, data *domain.RefreshToken) error {
+	query := `
+		UPDATE refresh_tokens
+		SET
+			revoked = TRUE
+		WHERE id = $1
+	`
+
+	if _, err := r.db.Exec(
+		ctx,
+		query,
+		data.ID,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type Repo interface {
-	Save(ctx context.Context, data *RefreshToken) error
+	Save(ctx context.Context, data *domain.RefreshToken) error
+	Revoke(ctx context.Context, data *domain.RefreshToken) error
 }
 
 type ReadModel interface {
+	GetPermissionById(ctx context.Context, id ulid.ULID) (PermissionList, error)
 	Fetch(ctx context.Context) (RefreshTokenList, error)
-	FindById(ctx context.Context, id ulid.ULID) (*RefreshToken, error)
-	FindByUserID(ctx context.Context, id ulid.ULID) (*RefreshToken, error)
-	FindByToken(ctx context.Context, token string) (*RefreshToken, error)
+	FindById(ctx context.Context, id ulid.ULID) (*domain.RefreshToken, error)
+	FindByUserID(ctx context.Context, id ulid.ULID) (*domain.RefreshToken, error)
+	FindByToken(ctx context.Context, token string) (*domain.RefreshToken, error)
+}
+type PermissionList struct {
+	Permissions []string `json:"data"`
+	Count       int      `json:"count"`
+}
+
+var emptyPermissionList = PermissionList{
+	Permissions: make([]string, 0),
+	Count:       0,
+}
+
+// GetPermissionById implements ReadModel.
+func (r *repo) GetPermissionById(ctx context.Context, id ulid.ULID) (PermissionList, error) {
+	var itemCount int
+	var urls []string
+	rows, err := r.db.Query(
+		ctx,
+		`
+			SELECT p.url, COUNT(p.url) AS url_count
+			FROM account_roles ar
+			JOIN role_permissions rp ON ar.role_id = rp.role_id
+			JOIN permissions p ON rp.permission_id = p.id
+			WHERE ar.account_id = $1
+			GROUP BY p.url;
+		`,
+		id,
+	)
+	if err != nil {
+		return emptyPermissionList, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var url string
+		var count int
+		if err := rows.Scan(&url, &count); err != nil {
+			return emptyPermissionList, err
+		}
+		urls = append(urls, url)
+		itemCount++
+	}
+	list := PermissionList{
+		Permissions: urls,
+		Count:       itemCount,
+	}
+	return list, nil
 }
 
 func NewRepo(db *pgxpool.Pool) Repo {

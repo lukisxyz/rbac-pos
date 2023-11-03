@@ -122,6 +122,10 @@ func main() {
 		mutateDataAccount,
 		readDataAccount,
 	)
+	accountPublicRoute := account.NewPublicRoute(
+		mutateDataAccount,
+		readDataAccount,
+	)
 	accountRoleRoute := account.NewRoleRoute(
 		mutateDataAccount,
 		readDataAccount,
@@ -130,15 +134,17 @@ func main() {
 	oauthRoute := oauth.NewRoute(
 		oauthSvc,
 		cfg.JwtCfg.Secret,
+		cfg.JwtCfg.RefreshExpTime,
 	)
 	r.Mount("/api", oauthRoute.Routes())
+	r.Mount("/api/register", accountPublicRoute.Routes())
 
 	r.Group(func(r chi.Router) {
 		r.Use(custommiddleware.AuthJwtMiddleware)
+		r.Mount("/api/account", accountRoute.Routes())
 		r.Mount("/api/permission", permissionRoute.Routes())
 		r.Mount("/api/role-permission", rolePermissionRoute.Routes())
 		r.Mount("/api/role", roleRoute.Routes())
-		r.Mount("/api/account", accountRoute.Routes())
 		r.Mount("/api/account-role", accountRoleRoute.Routes())
 		r.Mount("/api/dashboard", protected.Routes())
 	})

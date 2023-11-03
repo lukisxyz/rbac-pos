@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"pos/domain"
 	"pos/utils/httpresponse"
+	"pos/utils/key"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	validation "github.com/go-ozzo/ozzo-validation"
@@ -265,6 +268,8 @@ func (p *permissionRoleRoute) assignPermission(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
+	ctx := r.Context()
+	token := ctx.Value(key.UserValueKey).(*domain.Oauth)
 	var body assignPermissionRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httpresponse.WriteError(w, http.StatusBadRequest, err)
@@ -275,13 +280,22 @@ func (p *permissionRoleRoute) assignPermission(
 		httpresponse.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
-	ctx := r.Context()
 
-	err := p.rolePermission.AssignPermisson(ctx, body.RoleId, body.PermissionId)
+	err := p.rolePermission.AssignPermisson(ctx, token.Id, body.RoleId, body.PermissionId)
 	if err != nil {
 		httpresponse.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
+	cookie := http.Cookie{
+		Name:     "permissions",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		Expires:  time.Now().Add(-1 * time.Minute),
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, &cookie)
 	httpresponse.WriteMessage(w, http.StatusCreated, "success assign a permission")
 }
 
@@ -289,6 +303,8 @@ func (p *permissionRoleRoute) deletePermission(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
+	ctx := r.Context()
+	token := ctx.Value(key.UserValueKey).(*domain.Oauth)
 	var body assignPermissionRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		httpresponse.WriteError(w, http.StatusBadRequest, err)
@@ -299,12 +315,21 @@ func (p *permissionRoleRoute) deletePermission(
 		httpresponse.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
-	ctx := r.Context()
 
-	err := p.rolePermission.DeletePermission(ctx, body.RoleId, body.PermissionId)
+	err := p.rolePermission.DeletePermission(ctx, token.Id, body.RoleId, body.PermissionId)
 	if err != nil {
 		httpresponse.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
+	cookie := http.Cookie{
+		Name:     "permissions",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		Expires:  time.Now().Add(-1 * time.Minute),
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, &cookie)
 	httpresponse.WriteMessage(w, http.StatusCreated, "success remove a permission")
 }

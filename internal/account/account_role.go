@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"pos/internal/role"
+	"pos/domain"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -22,16 +22,16 @@ var (
 type ReadModelAccountRole interface {
 	FetchByAccount(ctx context.Context, id ulid.ULID) (RoleAccountList, error)
 	FetchByRole(ctx context.Context, id ulid.ULID) (AccountRoleList, error)
-	Find(ctx context.Context, rid, uid ulid.ULID) (*AccountRole, error)
+	Find(ctx context.Context, rid, uid ulid.ULID) (*domain.AccountRole, error)
 }
 
 type RoleAccountList struct {
-	Roles []role.Role `json:"data"`
-	Count int         `json:"count"`
+	Roles []domain.Role `json:"data"`
+	Count int           `json:"count"`
 }
 
 var emptyRole = RoleAccountList{
-	Roles: []role.Role{},
+	Roles: []domain.Role{},
 	Count: 0,
 }
 
@@ -52,7 +52,7 @@ func (r *repo) FetchByAccount(ctx context.Context, id ulid.ULID) (RoleAccountLis
 		return emptyRole, nil
 	}
 	log.Debug().Int("count", itemCount).Msg("found role items")
-	items := make([]role.Role, itemCount)
+	items := make([]domain.Role, itemCount)
 	rows, err := r.db.Query(
 		ctx,
 		`
@@ -93,7 +93,7 @@ func (r *repo) FetchByAccount(ctx context.Context, id ulid.ULID) (RoleAccountLis
 			return emptyRole, err
 		}
 		fmt.Println(name)
-		items[count] = role.Role{
+		items[count] = domain.Role{
 			Id:          id,
 			Name:        name,
 			Description: desc,
@@ -108,12 +108,12 @@ func (r *repo) FetchByAccount(ctx context.Context, id ulid.ULID) (RoleAccountLis
 }
 
 type AccountRoleList struct {
-	Accounts []Account `json:"data"`
-	Count    int       `json:"count"`
+	Accounts []domain.Account `json:"data"`
+	Count    int              `json:"count"`
 }
 
 var emptyAccount = AccountRoleList{
-	Accounts: []Account{},
+	Accounts: []domain.Account{},
 	Count:    0,
 }
 
@@ -134,7 +134,7 @@ func (r *repo) FetchByRole(ctx context.Context, id ulid.ULID) (AccountRoleList, 
 		return emptyAccount, nil
 	}
 	log.Debug().Int("count", itemCount).Msg("found role items")
-	items := make([]Account, itemCount)
+	items := make([]domain.Account, itemCount)
 	rows, err := r.db.Query(
 		ctx,
 		`
@@ -171,7 +171,7 @@ func (r *repo) FetchByRole(ctx context.Context, id ulid.ULID) (AccountRoleList, 
 			log.Warn().Err(err).Msg("cannot scan an item")
 			return emptyAccount, err
 		}
-		items[count] = Account{
+		items[count] = domain.Account{
 			Id:    id,
 			Email: email,
 		}
@@ -184,7 +184,7 @@ func (r *repo) FetchByRole(ctx context.Context, id ulid.ULID) (AccountRoleList, 
 }
 
 // Find implements ReadModelAccountRole.
-func (r *repo) Find(ctx context.Context, rid, uid ulid.ULID) (*AccountRole, error) {
+func (r *repo) Find(ctx context.Context, rid, uid ulid.ULID) (*domain.AccountRole, error) {
 	row := r.db.QueryRow(
 		ctx,
 		`
@@ -200,7 +200,7 @@ func (r *repo) Find(ctx context.Context, rid, uid ulid.ULID) (*AccountRole, erro
 		rid,
 		uid,
 	)
-	var data AccountRole
+	var data domain.AccountRole
 	if err := row.Scan(
 		&data.RoleId,
 		&data.AccountId,

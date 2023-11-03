@@ -10,8 +10,8 @@ import (
 type RolePermissionService interface {
 	GetPermission(ctx context.Context, rid ulid.ULID) (RolePermissionList, error)
 	GetRoleByPermission(ctx context.Context, pid ulid.ULID) (PermissionRoleList, error)
-	AssignPermisson(ctx context.Context, rid, pid ulid.ULID) error
-	DeletePermission(ctx context.Context, rid, pid ulid.ULID) error
+	AssignPermisson(ctx context.Context, uid, rid, pid ulid.ULID) error
+	DeletePermission(ctx context.Context, uid, rid, pid ulid.ULID) error
 }
 
 func NewRolePermissionService(
@@ -29,20 +29,28 @@ func NewRolePermissionService(
 }
 
 // AssignPermisson implements RolePermissionService.
-func (s *services) DeletePermission(ctx context.Context, rid, pid ulid.ULID) error {
+func (s *services) DeletePermission(ctx context.Context, uid, rid, pid ulid.ULID) error {
 	data, err := s.rolePermissionReadModel.Find(ctx, pid, rid)
 	if err != nil {
 		return err
 	}
-	return s.rolePermissionRepo.RemovePermission(ctx, data.RoleId, data.PermissionId)
+	err = s.rolePermissionRepo.RemovePermission(ctx, data.RoleId, data.PermissionId)
+	if err != nil {
+		return err
+	}
+	return s.rolePermissionRepo.RevokeSession(ctx, uid)
 }
 
 // AssignPermisson implements RolePermissionService.
-func (s *services) AssignPermisson(ctx context.Context, rid, pid ulid.ULID) error {
+func (s *services) AssignPermisson(ctx context.Context, uid, rid, pid ulid.ULID) error {
 	_, err := s.rolePermissionReadModel.Find(ctx, pid, rid)
 	if err != nil {
 		if errors.Is(err, ErrPermissionNotFound) {
-			return s.rolePermissionRepo.AssignPermission(ctx, rid, pid)
+			err := s.rolePermissionRepo.AssignPermission(ctx, rid, pid)
+			if err != nil {
+				return err
+			}
+			return s.rolePermissionRepo.RevokeSession(ctx, uid)
 		}
 	}
 	return ErrPermissionAlreadyAssigned

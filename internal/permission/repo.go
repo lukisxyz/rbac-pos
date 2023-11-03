@@ -3,6 +3,7 @@ package permission
 import (
 	"context"
 	"errors"
+	"pos/domain"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -22,12 +23,12 @@ type repo struct {
 }
 
 type PermissionList struct {
-	Permissions []Permission `json:"data"`
-	Count       int          `json:"count"`
+	Permissions []domain.Permission `json:"data"`
+	Count       int                 `json:"count"`
 }
 
 var emptyList = PermissionList{
-	Permissions: []Permission{},
+	Permissions: []domain.Permission{},
 	Count:       0,
 }
 
@@ -48,7 +49,7 @@ func (r *repo) Fetch(ctx context.Context) (PermissionList, error) {
 		return emptyList, nil
 	}
 	log.Debug().Int("count", itemCount).Msg("found permission items")
-	items := make([]Permission, itemCount)
+	items := make([]domain.Permission, itemCount)
 	rows, err := r.db.Query(
 		ctx,
 		`
@@ -89,7 +90,7 @@ func (r *repo) Fetch(ctx context.Context) (PermissionList, error) {
 			log.Warn().Err(err).Msg("cannot scan an item")
 			return emptyList, err
 		}
-		items[count] = Permission{
+		items[count] = domain.Permission{
 			Id:          id,
 			Name:        name,
 			Description: desc,
@@ -105,7 +106,7 @@ func (r *repo) Fetch(ctx context.Context) (PermissionList, error) {
 }
 
 // FindById implements ReadModel.
-func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*Permission, error) {
+func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*domain.Permission, error) {
 	row := r.db.QueryRow(
 		ctx,
 		`
@@ -122,7 +123,7 @@ func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*Permission, error) 
 		`,
 		id,
 	)
-	var data Permission
+	var data domain.Permission
 	if err := row.Scan(
 		&data.Id,
 		&data.Name,
@@ -139,12 +140,12 @@ func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*Permission, error) 
 }
 
 // FindByUrl implements ReadModel.
-func (*repo) FindByUrl(ctx context.Context, url string) (*Permission, error) {
+func (*repo) FindByUrl(ctx context.Context, url string) (*domain.Permission, error) {
 	panic("unimplemented")
 }
 
 // Delete implements Repo.
-func (r *repo) Delete(ctx context.Context, data *Permission) error {
+func (r *repo) Delete(ctx context.Context, data *domain.Permission) error {
 	_, err := r.db.Exec(
 		ctx,
 		`
@@ -160,7 +161,7 @@ func (r *repo) Delete(ctx context.Context, data *Permission) error {
 }
 
 // Save implements Repo.
-func (r *repo) Save(ctx context.Context, data *Permission) error {
+func (r *repo) Save(ctx context.Context, data *domain.Permission) error {
 	_, err := r.db.Exec(
 		ctx,
 		`
@@ -198,14 +199,14 @@ func (r *repo) Save(ctx context.Context, data *Permission) error {
 }
 
 type Repo interface {
-	Save(ctx context.Context, data *Permission) error
-	Delete(ctx context.Context, data *Permission) error
+	Save(ctx context.Context, data *domain.Permission) error
+	Delete(ctx context.Context, data *domain.Permission) error
 }
 
 type ReadModel interface {
 	Fetch(ctx context.Context) (PermissionList, error)
-	FindById(ctx context.Context, id ulid.ULID) (*Permission, error)
-	FindByUrl(ctx context.Context, url string) (*Permission, error)
+	FindById(ctx context.Context, id ulid.ULID) (*domain.Permission, error)
+	FindByUrl(ctx context.Context, url string) (*domain.Permission, error)
 }
 
 func NewRepo(db *pgxpool.Pool) Repo {

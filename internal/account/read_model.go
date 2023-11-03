@@ -3,6 +3,7 @@ package account
 import (
 	"context"
 	"errors"
+	"pos/domain"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -12,12 +13,12 @@ import (
 )
 
 type AccountList struct {
-	Accounts []Account `json:"data"`
-	Count    int       `json:"count"`
+	Accounts []domain.Account `json:"data"`
+	Count    int              `json:"count"`
 }
 
 var emptyList = AccountList{
-	Accounts: []Account{},
+	Accounts: []domain.Account{},
 	Count:    0,
 }
 
@@ -38,7 +39,7 @@ func (r *repo) Fetch(ctx context.Context) (AccountList, error) {
 		return emptyList, nil
 	}
 	log.Debug().Int("count", itemCount).Msg("found Account items")
-	items := make([]Account, itemCount)
+	items := make([]domain.Account, itemCount)
 	rows, err := r.db.Query(
 		ctx,
 		`
@@ -76,7 +77,7 @@ func (r *repo) Fetch(ctx context.Context) (AccountList, error) {
 			log.Warn().Err(err).Msg("cannot scan an item")
 			return emptyList, err
 		}
-		items[count] = Account{
+		items[count] = domain.Account{
 			Id:        id,
 			Password:  password,
 			Email:     email,
@@ -91,7 +92,7 @@ func (r *repo) Fetch(ctx context.Context) (AccountList, error) {
 }
 
 // FindById implements ReadModel.
-func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*Account, error) {
+func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*domain.Account, error) {
 	row := r.db.QueryRow(
 		ctx,
 		`
@@ -107,7 +108,7 @@ func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*Account, error) {
 		`,
 		id,
 	)
-	var data Account
+	var data domain.Account
 	if err := row.Scan(
 		&data.Id,
 		&data.Email,
@@ -123,7 +124,7 @@ func (r *repo) FindById(ctx context.Context, id ulid.ULID) (*Account, error) {
 }
 
 // FindByEmail implements ReadModel.
-func (r *repo) FindByEmail(ctx context.Context, email string) (*Account, error) {
+func (r *repo) FindByEmail(ctx context.Context, email string) (*domain.Account, error) {
 	row := r.db.QueryRow(
 		ctx,
 		`
@@ -139,7 +140,7 @@ func (r *repo) FindByEmail(ctx context.Context, email string) (*Account, error) 
 		`,
 		email,
 	)
-	var data Account
+	var data domain.Account
 	if err := row.Scan(
 		&data.Id,
 		&data.Email,
@@ -156,8 +157,8 @@ func (r *repo) FindByEmail(ctx context.Context, email string) (*Account, error) 
 
 type ReadModel interface {
 	Fetch(ctx context.Context) (AccountList, error)
-	FindById(ctx context.Context, id ulid.ULID) (*Account, error)
-	FindByEmail(ctx context.Context, email string) (*Account, error)
+	FindById(ctx context.Context, id ulid.ULID) (*domain.Account, error)
+	FindByEmail(ctx context.Context, email string) (*domain.Account, error)
 }
 
 func NewReadModel(db *pgxpool.Pool) ReadModel {

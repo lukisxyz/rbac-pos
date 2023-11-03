@@ -2,13 +2,14 @@ package role
 
 import (
 	"context"
+	"pos/domain"
 
 	"github.com/oklog/ulid/v2"
 )
 
 // CreateRole implements MutationData.
-func (s *services) CreateRole(ctx context.Context, name, desc string) (*Role, error) {
-	newData := newRole(name, desc)
+func (s *services) CreateRole(ctx context.Context, name, desc string) (*domain.Role, error) {
+	newData := domain.NewRole(name, desc)
 	if err := s.repo.Save(ctx, &newData); err != nil {
 		return nil, err
 	}
@@ -25,7 +26,7 @@ func (s *services) DeleteRole(ctx context.Context, id ulid.ULID) error {
 }
 
 // EditRole implements MutationData.
-func (s *services) EditRole(ctx context.Context, id ulid.ULID, name, desc string) (*Role, error) {
+func (s *services) EditRole(ctx context.Context, id ulid.ULID, name, desc string) (*domain.Role, error) {
 	currentData, err := s.readModel.FindById(ctx, id)
 	if err != nil {
 		return nil, err
@@ -39,8 +40,8 @@ func (s *services) EditRole(ctx context.Context, id ulid.ULID, name, desc string
 }
 
 type MutationData interface {
-	CreateRole(ctx context.Context, name, desc string) (*Role, error)
-	EditRole(ctx context.Context, id ulid.ULID, name, desc string) (*Role, error)
+	CreateRole(ctx context.Context, name, desc string) (*domain.Role, error)
+	EditRole(ctx context.Context, id ulid.ULID, name, desc string) (*domain.Role, error)
 	DeleteRole(ctx context.Context, id ulid.ULID) error
 }
 

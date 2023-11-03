@@ -3,7 +3,7 @@ package role
 import (
 	"context"
 	"errors"
-	"pos/internal/permission"
+	"pos/domain"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -21,16 +21,16 @@ var (
 type ReadModelRolePermission interface {
 	FetchByPermission(ctx context.Context, id ulid.ULID) (PermissionRoleList, error)
 	FetchByRole(ctx context.Context, id ulid.ULID) (RolePermissionList, error)
-	Find(ctx context.Context, pid, rid ulid.ULID) (*RolePermission, error)
+	Find(ctx context.Context, pid, rid ulid.ULID) (*domain.RolePermission, error)
 }
 
 type PermissionRoleList struct {
-	Roles []Role `json:"data"`
-	Count int    `json:"count"`
+	Roles []domain.Role `json:"data"`
+	Count int           `json:"count"`
 }
 
 var emptyRole = PermissionRoleList{
-	Roles: []Role{},
+	Roles: []domain.Role{},
 	Count: 0,
 }
 
@@ -51,7 +51,7 @@ func (r *repo) FetchByPermission(ctx context.Context, id ulid.ULID) (PermissionR
 		return emptyRole, nil
 	}
 	log.Debug().Int("count", itemCount).Msg("found role permission items")
-	items := make([]Role, itemCount)
+	items := make([]domain.Role, itemCount)
 	rows, err := r.db.Query(
 		ctx,
 		`
@@ -91,7 +91,7 @@ func (r *repo) FetchByPermission(ctx context.Context, id ulid.ULID) (PermissionR
 			log.Warn().Err(err).Msg("cannot scan an item")
 			return emptyRole, err
 		}
-		items[count] = Role{
+		items[count] = domain.Role{
 			Id:          id,
 			Name:        name,
 			Description: desc,
@@ -106,12 +106,12 @@ func (r *repo) FetchByPermission(ctx context.Context, id ulid.ULID) (PermissionR
 }
 
 type RolePermissionList struct {
-	Permissions []permission.Permission `json:"data"`
-	Count       int                     `json:"count"`
+	Permissions []string `json:"data"`
+	Count       int      `json:"count"`
 }
 
 var emptyPermission = RolePermissionList{
-	Permissions: []permission.Permission{},
+	Permissions: []string{},
 	Count:       0,
 }
 
@@ -132,14 +132,11 @@ func (r *repo) FetchByRole(ctx context.Context, id ulid.ULID) (RolePermissionLis
 		return emptyPermission, nil
 	}
 	log.Debug().Int("count", itemCount).Msg("found role permission items")
-	items := make([]permission.Permission, itemCount)
+	items := make([]string, itemCount)
 	rows, err := r.db.Query(
 		ctx,
 		`
 			SELECT
-				p.id AS permission_id,
-				p.name,
-				p.description AS desc,
 				p.url
 			FROM
 				role_permissions rp
@@ -159,29 +156,17 @@ func (r *repo) FetchByRole(ctx context.Context, id ulid.ULID) (RolePermissionLis
 
 	var count int
 	for count = range items {
-		var id ulid.ULID
-		var name string
-		var desc string
 		var url string
 		if !rows.Next() {
 			break
 		}
 		if err := rows.Scan(
-			&id,
-			&name,
-			&desc,
 			&url,
 		); err != nil {
 			log.Warn().Err(err).Msg("cannot scan an item")
 			return emptyPermission, err
 		}
-		items[count] = permission.Permission{
-			Id:          id,
-			Name:        name,
-			Description: desc,
-			Url:         url,
-			CreatedAt:   time.Time{},
-		}
+		items[count] = url
 	}
 	list := RolePermissionList{
 		Permissions: items,
@@ -191,7 +176,7 @@ func (r *repo) FetchByRole(ctx context.Context, id ulid.ULID) (RolePermissionLis
 }
 
 // Find implements ReadModelRolePermission.
-func (r *repo) Find(ctx context.Context, pid, rid ulid.ULID) (*RolePermission, error) {
+func (r *repo) Find(ctx context.Context, pid, rid ulid.ULID) (*domain.RolePermission, error) {
 	row := r.db.QueryRow(
 		ctx,
 		`
@@ -207,7 +192,7 @@ func (r *repo) Find(ctx context.Context, pid, rid ulid.ULID) (*RolePermission, e
 		pid,
 		rid,
 	)
-	var data RolePermission
+	var data domain.RolePermission
 	if err := row.Scan(
 		&data.PermissionId,
 		&data.RoleId,
@@ -221,6 +206,21 @@ func (r *repo) Find(ctx context.Context, pid, rid ulid.ULID) (*RolePermission, e
 	return &data, nil
 }
 
+func (r *repo) RevokeSession(ctx context.Context, id ulid.ULID) error {
+	query := `
+		UPDATE refresh_tokens
+		SET revoked = true
+		WHERE account_id = $1;
+	`
+	if _, err := r.db.Exec(
+		ctx,
+		query,
+		id,
+	); err != nil {
+		return err
+	}
+	return nil
+}
 func NewReadModelRolePermission(db *pgxpool.Pool) ReadModelRolePermission {
 	return &repo{db: db}
 }
@@ -228,6 +228,7 @@ func NewReadModelRolePermission(db *pgxpool.Pool) ReadModelRolePermission {
 type RepoRolePermission interface {
 	AssignPermission(ctx context.Context, roleId, permissionId ulid.ULID) error
 	RemovePermission(ctx context.Context, roleId, permissionId ulid.ULID) error
+	RevokeSession(ctx context.Context, id ulid.ULID) error
 }
 
 // AssignPermission implements RepoRolePermission.

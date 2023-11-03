@@ -2,14 +2,15 @@ package account
 
 import (
 	"context"
+	"pos/domain"
 
 	"github.com/oklog/ulid/v2"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // CreateAccount implements MutationData.
-func (s *services) CreateAccount(ctx context.Context, email, pwd string) (*Account, error) {
-	newData, err := newAccount(email, pwd)
+func (s *services) CreateAccount(ctx context.Context, email, pwd string) (*domain.Account, error) {
+	newData, err := domain.NewAccount(email, pwd)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +30,7 @@ func (s *services) DeleteAccount(ctx context.Context, id ulid.ULID) error {
 }
 
 // EditAccount implements MutationData.
-func (s *services) EditAccount(ctx context.Context, id ulid.ULID, pwd string) (*Account, error) {
+func (s *services) EditAccount(ctx context.Context, id ulid.ULID, pwd string) (*domain.Account, error) {
 	currentData, err := s.readModel.FindById(ctx, id)
 	if err != nil {
 		return nil, err
@@ -46,8 +47,8 @@ func (s *services) EditAccount(ctx context.Context, id ulid.ULID, pwd string) (*
 }
 
 type MutationData interface {
-	CreateAccount(ctx context.Context, email, pwd string) (*Account, error)
-	EditAccount(ctx context.Context, id ulid.ULID, pwd string) (*Account, error)
+	CreateAccount(ctx context.Context, email, pwd string) (*domain.Account, error)
+	EditAccount(ctx context.Context, id ulid.ULID, pwd string) (*domain.Account, error)
 	DeleteAccount(ctx context.Context, id ulid.ULID) error
 }
 
