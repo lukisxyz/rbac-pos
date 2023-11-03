@@ -10,14 +10,15 @@ import (
 func Routes() *chi.Mux {
 	r := chi.NewMux()
 
-	r.Use(custommiddleware.ProtectedMiddleware)
-
-	// Create a route for "Create Sale" permission using POST method
-	r.Post("/create-sale", func(w http.ResponseWriter, req *http.Request) {
-		_, err := w.Write([]byte("Creating Sale"))
-		if err != nil {
-			return
-		}
+	r.Group(func(r chi.Router) {
+		r.Use(custommiddleware.ProtectedMiddleware("oke"))
+		// Create a route for "Create Sale" permission using POST method
+		r.Post("/create-sale", func(w http.ResponseWriter, req *http.Request) {
+			_, err := w.Write([]byte("Creating Sale"))
+			if err != nil {
+				return
+			}
+		})
 	})
 
 	// Create a route for "Edit Sale" permission using PUT method

@@ -133,16 +133,15 @@ func main() {
 	)
 	r.Mount("/api", oauthRoute.Routes())
 
-	r.Group(func(rt chi.Router) {
-		rt.Use(custommiddleware.AuthJwtMiddleware)
-		rt.Mount("/api/permission", permissionRoute.Routes())
-		rt.Mount("/api/role-permission", rolePermissionRoute.Routes())
-		rt.Mount("/api/role", roleRoute.Routes())
-		rt.Mount("/api/account", accountRoute.Routes())
-		rt.Mount("/api/account-role", accountRoleRoute.Routes())
+	r.Group(func(r chi.Router) {
+		r.Use(custommiddleware.AuthJwtMiddleware)
+		r.Mount("/api/permission", permissionRoute.Routes())
+		r.Mount("/api/role-permission", rolePermissionRoute.Routes())
+		r.Mount("/api/role", roleRoute.Routes())
+		r.Mount("/api/account", accountRoute.Routes())
+		r.Mount("/api/account-role", accountRoleRoute.Routes())
+		r.Mount("/api/dashboard", protected.Routes())
 	})
-
-	r.Mount("/api/dashboard", protected.Routes())
 
 	log.Info().Msg(fmt.Sprintf("starting up server on: %s", cfg.Listen.Addr()))
 	server := &http.Server{
