@@ -16,3 +16,9 @@ We need atleas some of this table:
 - Account - role table
 
 - Protected (optionals) <-  no need, just return authorized or unauthorized
+
+So far this code is complete with exceptions:
+- Still no testing at all
+- Still no API documentation using swagger or another
+
+I will do to other project, for now i just want trying to build a RBAC system.
